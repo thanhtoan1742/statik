@@ -31,10 +31,11 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/rakyll/statik/fs"
+	"github.com/thanhtoan1742/statik/fs"
 )
 
 const nameSourceFile = "statik.go"
+const nameAssetFile = "asset"
 
 var namePackage string
 
@@ -92,7 +93,7 @@ func main() {
 
 	namePackage = *flagPkg
 
-	file, err := generateSource(*flagSrc, *flagInclude)
+	fSource, fAssest, err := generateSource(*flagSrc, *flagInclude)
 	if err != nil {
 		exitWithError(err)
 	}
@@ -103,7 +104,12 @@ func main() {
 		exitWithError(err)
 	}
 
-	err = rename(file.Name(), path.Join(destDir, nameSourceFile))
+	err = rename(fSource.Name(), path.Join(destDir, nameSourceFile))
+	if err != nil {
+		exitWithError(err)
+	}
+
+	err = rename(fAssest.Name(), path.Join(destDir, nameAssetFile))
 	if err != nil {
 		exitWithError(err)
 	}
@@ -183,20 +189,20 @@ func match(incs []string, path string) (bool, error) {
 // that contains source directory's contents as zip contents.
 // Generates source registers generated zip contents data to
 // be read by the statik/fs HTTP file system.
-func generateSource(srcPath string, includes string) (file *os.File, err error) {
+func generateSource(srcPath string, includes string) (fS *os.File, fA *os.File, err error) {
 	var (
 		buffer    bytes.Buffer
 		zipWriter io.Writer
 	)
 
 	zipWriter = &buffer
-	f, err := ioutil.TempFile("", namePackage)
+	fSource, err := ioutil.TempFile("", namePackage)
 	if err != nil {
 		return
 	}
 
-	zipWriter = io.MultiWriter(zipWriter, f)
-	defer f.Close()
+	zipWriter = io.MultiWriter(zipWriter, fSource)
+	defer fSource.Close()
 
 	w := zip.NewWriter(zipWriter)
 	if err = filepath.Walk(srcPath, func(path string, fi os.FileInfo, err error) error {
@@ -277,36 +283,47 @@ func generateSource(srcPath string, includes string) (file *os.File, err error) 
 package %s
 
 import (
-	"github.com/rakyll/statik/fs"
+	"github.com/thanhtoan1742/statik/fs"
+	_ "embed"
 )
 
+//go:embed asset
+var data []byte
 `, tags, comment, namePackage)
 	if !fs.IsDefaultNamespace(assetNamespace) {
 		fmt.Fprintf(&qb, `
+
 const %s = "%s" // static asset namespace
 `, assetNamespaceIdentify, assetNamespace)
 	}
 	fmt.Fprint(&qb, `
-func init() {
-	data := "`)
-	FprintZipData(&qb, buffer.Bytes())
+func init() {`)
 	if fs.IsDefaultNamespace(assetNamespace) {
-		fmt.Fprint(&qb, `"
-		fs.Register(data)
-	}
+		fmt.Fprint(&qb, `
+	fs.Register(string(data))
+}
 	`)
 
 	} else {
-		fmt.Fprintf(&qb, `"
-		fs.RegisterWithNamespace("%s", data)
-	}
+		fmt.Fprintf(&qb, `
+	fs.RegisterWithNamespace("%s", data)
+}
 	`, assetNamespace)
 	}
 
-	if err = ioutil.WriteFile(f.Name(), qb.Bytes(), 0644); err != nil {
+	if err = ioutil.WriteFile(fSource.Name(), qb.Bytes(), 0644); err != nil {
 		return
 	}
-	return f, nil
+
+	fAsset, err := ioutil.TempFile("", namePackage)
+	if err != nil {
+		return
+	}
+
+	if err = ioutil.WriteFile(fAsset.Name(), buffer.Bytes(), 0644); err != nil {
+		return
+	}
+	return fSource, fAsset, nil
 }
 
 // FprintZipData converts zip binary contents to a string literal.

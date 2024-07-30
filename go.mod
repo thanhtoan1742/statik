@@ -1,3 +1,3 @@
-module github.com/rakyll/statik
+module thanhtoan1742/statik
 
-go 1.12
+go 1.22.5
