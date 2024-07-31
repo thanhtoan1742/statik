@@ -6,8 +6,8 @@ import (
 	"log"
 	"net/http"
 
-	_ "github.com/thanhtoan1742/statik/example/statik"
-	"github.com/thanhtoan1742/statik/fs"
+	_ "github.com/rakyll/statik/example/statik"
+	"github.com/rakyll/statik/fs"
 )
 
 // Before buildling, run go generate.

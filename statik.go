@@ -31,7 +31,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/thanhtoan1742/statik/fs"
+	"github.com/rakyll/statik/fs"
 )
 
 const nameSourceFile = "statik.go"
@@ -283,7 +283,7 @@ func generateSource(srcPath string, includes string) (fS *os.File, fA *os.File, 
 package %s
 
 import (
-	"github.com/thanhtoan1742/statik/fs"
+	"github.com/rakyll/statik/fs"
 	_ "embed"
 )
 
